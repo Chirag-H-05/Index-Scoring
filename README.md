@@ -29,13 +29,13 @@ python run_server.py
 
 ```bash
 cd backend
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn main:app --reload
 ```
 
 **Option 3: Direct uvicorn call (Alternative)**
 
 ```bash
-python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn backend.main:app --reload 
 ```
 
 The application will be available at `http://localhost:8000`
