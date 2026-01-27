@@ -21,7 +21,7 @@
 
     .sidebar-item-active {
       background: linear-gradient(90deg, #4f46e5 0%, #6366f1 100%);
-      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+      box-shadow: 0 4px 12px rgba(78, 70, 229, 0.918);
     }
 
     .custom-scrollbar::-webkit-scrollbar { width: 5px; }
@@ -57,7 +57,7 @@
           <a href="/" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-xl font-semibold transition-all group">
             <span class="material-symbols-rounded text-[22px] text-slate-400 group-hover:text-indigo-500">analytics</span> Assessment
           </a>
-          <a href="/users" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-xl font-semibold transition-all group">
+          <a href="/admin/users" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-xl font-semibold transition-all group">
             <span class="material-symbols-rounded text-[22px] text-slate-400 group-hover:text-indigo-500">group</span> User Mgmt
           </a>
         </nav>
@@ -226,6 +226,107 @@
                 </div>
             </div>
 
+            <div class="glass-card rounded-[28px] overflow-hidden">
+                <div class="p-8 flex items-center justify-between border-b border-slate-100 bg-white/40">
+                  <div>
+                    <h3 class="text-xl font-extrabold text-slate-900 tracking-tight">User Management</h3>
+                    <p class="text-sm text-slate-500 font-medium mt-1">Manage system users, roles, and permissions</p>
+                  </div>
+                  <div class="flex gap-3">
+                    <button onclick="toggleAddUserModal()" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
+                        <span class="material-symbols-rounded text-[18px]">person_add</span> Add User
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left">
+                    <thead>
+                      <tr class="text-slate-400 text-[11px] uppercase tracking-[0.15em] font-black border-b border-slate-50">
+                        <th class="py-5 px-8">User Info</th>
+                        <th class="py-5 px-8">Role</th>
+                        <th class="py-5 px-8">Status</th>
+                        <th class="py-5 px-8">Last Active</th>
+                        <th class="py-5 px-8">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                      {% if users %}
+                        {% for user in users %}
+                        <tr class="group hover:bg-indigo-50/30 transition-all">
+                          <td class="py-5 px-8">
+                            <div class="flex items-center gap-4">
+                              <div class="size-11 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600 flex items-center justify-center font-extrabold text-sm border border-white shadow-sm group-hover:scale-110 transition-transform">
+                                {{ user.name[:2] | upper }}
+                              </div>
+                              <div>
+                                  <span class="block font-bold text-slate-800">{{ user.name }}</span>
+                                  <span class="text-[10px] text-slate-400 font-bold">{{ user.email }}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td class="py-5 px-8">
+                            <span class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm
+                              {% if user.role == 'admin' %} bg-purple-100 text-purple-700
+                              {% elif user.role == 'manager' %} bg-blue-100 text-blue-700
+                              {% else %} bg-slate-100 text-slate-700 {% endif %}">
+                              {{ user.role }}
+                            </span>
+                          </td>
+                          <td class="py-5 px-8">
+                            <div class="flex items-center gap-2">
+                              <span class="{% if user.is_active %}relative flex h-2 w-2{% endif %}">
+                                {% if user.is_active %}
+                                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                {% else %}
+                                  <span class="inline-flex rounded-full h-2 w-2 bg-slate-400"></span>
+                                {% endif %}
+                              </span>
+                              <span class="text-xs font-semibold {% if user.is_active %}text-emerald-600{% else %}text-slate-500{% endif %}">
+                                {{ 'Active' if user.is_active else 'Inactive' }}
+                              </span>
+                            </div>
+                          </td>
+                          <td class="py-5 px-8">
+                            <span class="text-xs font-semibold text-slate-600">{{ user.last_active or 'Never' }}</span>
+                          </td>
+                          <td class="py-5 px-8">
+                            <div class="flex gap-1 justify-end">
+                              <button onclick="editUser('{{ user.id }}')" class="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-white hover:shadow-sm rounded-xl transition-all" title="Edit User">
+                                <span class="material-symbols-rounded">edit</span>
+                              </button>
+                              {% if user.is_active %}
+                                <button onclick="deactivateUser('{{ user.id }}', '{{ user.name }}')" class="p-2.5 text-slate-400 hover:text-amber-600 hover:bg-white hover:shadow-sm rounded-xl transition-all" title="Deactivate">
+                                  <span class="material-symbols-rounded">block</span>
+                                </button>
+                              {% else %}
+                                <button onclick="activateUser('{{ user.id }}', '{{ user.name }}')" class="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm rounded-xl transition-all" title="Activate">
+                                  <span class="material-symbols-rounded">check_circle</span>
+                                </button>
+                              {% endif %}
+                              <button onclick="resetUserPassword('{{ user.id }}', '{{ user.name }}')" class="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-white hover:shadow-sm rounded-xl transition-all" title="Reset Password">
+                                <span class="material-symbols-rounded">lock_reset</span>
+                              </button>
+                              <button onclick="deleteUser('{{ user.id }}', '{{ user.name }}')" class="p-2.5 text-slate-400 hover:text-red-600 hover:bg-white hover:shadow-sm rounded-xl transition-all" title="Delete User">
+                                <span class="material-symbols-rounded">delete</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      {% else %}
+                        <tr>
+                          <td colspan="5" class="py-12 px-8 text-center">
+                            <p class="text-slate-500 font-medium">No users found</p>
+                          </td>
+                        </tr>
+                      {% endif %}
+                    </tbody>
+                  </table>
+                </div>
+            </div>
+
             <div class="glass-card rounded-[28px] overflow-hidden border-none ring-1 ring-slate-200/50">
                 <div class="p-8 border-b border-slate-100 flex items-center justify-between bg-white/60">
                   <h3 class="text-xl font-extrabold text-slate-900 tracking-tight">Real-time Event Stream</h3>
@@ -277,9 +378,212 @@
   </div>
 
   <script>
+    // User Management Functions
+    function toggleAddUserModal() {
+      const modal = document.getElementById('addUserModal');
+      if (modal) {
+        modal.classList.toggle('hidden');
+      } else {
+        showAddUserForm();
+      }
+    }
+
+    function showAddUserForm() {
+      const formHTML = `
+        <div id="addUserModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8">
+            <h2 class="text-2xl font-extrabold text-slate-900 mb-6">Add New User</h2>
+            <form id="addUserForm" onsubmit="submitAddUser(event)">
+              <div class="space-y-4 mb-6">
+                <div>
+                  <label class="block text-sm font-bold text-slate-700 mb-2">Full Name</label>
+                  <input type="text" id="userName" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="John Doe">
+                </div>
+                <div>
+                  <label class="block text-sm font-bold text-slate-700 mb-2">Email</label>
+                  <input type="email" id="userEmail" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="john@example.com">
+                </div>
+                <div>
+                  <label class="block text-sm font-bold text-slate-700 mb-2">Role</label>
+                  <select id="userRole" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <option value="user">Standard User</option>
+                    <option value="manager">Manager</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+              </div>
+              <div class="flex gap-3">
+                <button type="button" onclick="document.getElementById('addUserModal').remove()" class="flex-1 px-4 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 font-semibold">Cancel</button>
+                <button type="submit" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">Add User</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', formHTML);
+    }
+
+    async function submitAddUser(event) {
+      event.preventDefault();
+      const name = document.getElementById('userName').value;
+      const email = document.getElementById('userEmail').value;
+      const role = document.getElementById('userRole').value;
+
+      try {
+        const res = await fetch('/admin/add-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, role })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert('✓ User successfully created: ' + name);
+          document.getElementById('addUserModal')?.remove();
+          location.reload();
+        } else {
+          alert('✕ Error: ' + (data.message || 'Failed to add user'));
+        }
+      } catch (e) {
+        alert('✕ Error: ' + e.message);
+      }
+    }
+
+    async function editUser(userId) {
+      try {
+        const res = await fetch(`/admin/user/${userId}`);
+        const user = await res.json();
+        
+        const formHTML = `
+          <div id="editUserModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8">
+              <h2 class="text-2xl font-extrabold text-slate-900 mb-6">Edit User</h2>
+              <form id="editUserForm" onsubmit="submitEditUser(event, '${userId}')">
+                <div class="space-y-4 mb-6">
+                  <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Full Name</label>
+                    <input type="text" id="editUserName" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" value="${user.name}">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Email</label>
+                    <input type="email" id="editUserEmail" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" value="${user.email}">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Role</label>
+                    <select id="editUserRole" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                      <option value="user" ${user.role === 'user' ? 'selected' : ''}>Standard User</option>
+                      <option value="manager" ${user.role === 'manager' ? 'selected' : ''}>Manager</option>
+                      <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="flex gap-3">
+                  <button type="button" onclick="document.getElementById('editUserModal').remove()" class="flex-1 px-4 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 font-semibold">Cancel</button>
+                  <button type="submit" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">Save Changes</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', formHTML);
+      } catch (e) {
+        alert('✕ Error: ' + e.message);
+      }
+    }
+
+    async function submitEditUser(event, userId) {
+      event.preventDefault();
+      const name = document.getElementById('editUserName').value;
+      const email = document.getElementById('editUserEmail').value;
+      const role = document.getElementById('editUserRole').value;
+
+      try {
+        const res = await fetch(`/admin/user/${userId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, role })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert('✓ User updated successfully');
+          document.getElementById('editUserModal')?.remove();
+          location.reload();
+        } else {
+          alert('✕ Error: ' + (data.message || 'Failed to update user'));
+        }
+      } catch (e) {
+        alert('✕ Error: ' + e.message);
+      }
+    }
+
+    async function deactivateUser(userId, userName) {
+      if (confirm(`Are you sure you want to deactivate ${userName}?`)) {
+        try {
+          const res = await fetch(`/admin/user/${userId}/deactivate`, { method: 'POST' });
+          const data = await res.json();
+          if (res.ok) {
+            alert('✓ User deactivated successfully');
+            location.reload();
+          } else {
+            alert('✕ Error: ' + (data.message || 'Failed to deactivate user'));
+          }
+        } catch (e) {
+          alert('✕ Error: ' + e.message);
+        }
+      }
+    }
+
+    async function activateUser(userId, userName) {
+      if (confirm(`Are you sure you want to activate ${userName}?`)) {
+        try {
+          const res = await fetch(`/admin/user/${userId}/activate`, { method: 'POST' });
+          const data = await res.json();
+          if (res.ok) {
+            alert('✓ User activated successfully');
+            location.reload();
+          } else {
+            alert('✕ Error: ' + (data.message || 'Failed to activate user'));
+          }
+        } catch (e) {
+          alert('✕ Error: ' + e.message);
+        }
+      }
+    }
+
+    async function resetUserPassword(userId, userName) {
+      if (confirm(`Send password reset link to ${userName}?`)) {
+        try {
+          const res = await fetch(`/admin/user/${userId}/reset-password`, { method: 'POST' });
+          const data = await res.json();
+          if (res.ok) {
+            alert('✓ Password reset link sent successfully');
+          } else {
+            alert('✕ Error: ' + (data.message || 'Failed to send reset link'));
+          }
+        } catch (e) {
+          alert('✕ Error: ' + e.message);
+        }
+      }
+    }
+
+    async function deleteUser(userId, userName) {
+      if (confirm(`Are you sure you want to permanently delete ${userName}? This action cannot be undone.`)) {
+        try {
+          const res = await fetch(`/admin/user/${userId}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (res.ok) {
+            alert('✓ User deleted successfully');
+            location.reload();
+          } else {
+            alert('✕ Error: ' + (data.message || 'Failed to delete user'));
+          }
+        } catch (e) {
+          alert('✕ Error: ' + e.message);
+        }
+      }
+    }
+
     async function sendUserReport(username) {
       try {
-        // Visual feedback on the button could be added here
         const res = await fetch("/admin/send-user-report", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -287,7 +591,6 @@
         });
         const data = await res.json();
         if (res.ok && data.status === "sent") {
-          // Simple but elegant alert replacement could be a Toast
           alert("✓ Report successfully dispatched to " + data.to);
         } else {
           alert("✕ System Error: " + (data.message || res.status));

@@ -8,36 +8,24 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* User Portal Theme */
-            --u-primary: #6366f1;
-            --u-primary-dark: #4f46e5;
-            --u-secondary: #ec4899;
+            --color-1: #ee5108; --color-2: #24188050; --color-3: #0b053350;
+            --color-4: #cf9e3c67; --color-5: #957b675d;
             
-            /* Admin Portal Theme */
-            --a-primary: #f59e0b;
-            --a-primary-dark: #d97706;
-            --a-secondary: #d946ef;
+            --u-primary: var(--color-1); --u-secondary: var(--color-2);
+            --a-primary: var(--color-4); --a-secondary: var(--color-5);
             
-            --bg-dark: #020617;
-            --surface: rgba(30, 41, 59, 0.6);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
+            --bg-dark: #050510; 
+            --surface: rgba(36, 24, 128, 0.12); 
+            --text-main: #f8fafc; --text-muted: #94a3b8;
             
-            /* Dynamic Transition */
-            --active-accent: var(--u-primary);
-            --active-accent-dark: var(--u-primary-dark);
+            --active-accent: var(--u-primary); --active-accent-2: var(--u-secondary);
         }
 
-        /* Logic to swap accents when admin mode is active */
         body.admin-mode {
-            --active-accent: var(--a-primary);
-            --active-accent-dark: var(--a-primary-dark);
+            --active-accent: var(--a-primary); --active-accent-2: var(--a-secondary);
         }
 
-        * {
-            margin: 0; padding: 0; box-sizing: border-box;
-            font-family: 'Outfit', sans-serif;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
 
         body {
             background-color: var(--bg-dark);
@@ -47,217 +35,188 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            perspective: 1000px;
-            transition: background-color 0.5s ease;
         }
 
-        /* Animated Background Blobs */
+        /* --- INTRO ANIMATION OVERLAY --- */
+        #intro-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-dark);
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            animation: fadeOutOverlay 1s ease forwards 2.5s;
+        }
+
+        .intro-text {
+            font-size: 3rem;
+            font-weight: 800;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            text-align: center;
+            background: linear-gradient(to right, var(--color-1), var(--color-2), var(--color-4));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            opacity: 0;
+            transform: scale(0.8);
+            animation: textReveal 2s cubic-bezier(0.19, 1, 0.22, 1) forwards 0.5s;
+        }
+
+        @keyframes textReveal {
+            0% { opacity: 0; transform: scale(0.8); filter: blur(10px); }
+            50% { opacity: 1; transform: scale(1.05); filter: blur(0px); }
+            100% { opacity: 0; transform: scale(1.1); filter: blur(5px); }
+        }
+
+        @keyframes fadeOutOverlay {
+            to { opacity: 0; visibility: hidden; }
+        }
+
+        /* --- BACKGROUND & LOGO --- */
+        .header-logo {
+            position: fixed; top: 25px; left: 30px; z-index: 100;
+            opacity: 0; transform: translateX(-20px);
+            animation: slideIn 0.8s ease forwards 3s;
+        }
+
+        .header-logo img { height: 100px; width: auto; }
+
+        .home-bg {
+            position: fixed; inset: 0;
+            background: linear-gradient(rgba(62, 172, 199, 0.85), rgba(0, 2, 10, 0.95)), 
+                        url('https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=2070');
+            background-size: cover; background-position: center; z-index: -2;
+        }
+
         .blob {
-            position: absolute;
-            width: 500px; height: 500px;
-            border-radius: 50%;
-            filter: blur(100px);
-            opacity: 0.2;
-            z-index: 0;
-            animation: float 20s infinite alternate;
-            transition: background 0.8s ease;
+            position: absolute; width: 60vw; height: 60vw; border-radius: 50%;
+            filter: blur(120px); opacity: 0.25; z-index: -1;
+            animation: float 25s infinite alternate; transition: background 1s ease;
         }
+
         @keyframes float {
-            0% { transform: translate(0, 0) scale(1); }
-            100% { transform: translate(100px, 50px) scale(1.2); }
+            0% { transform: translate(-10%, -10%) rotate(0deg); }
+            100% { transform: translate(15%, 15%) rotate(20deg); }
         }
-        .blob-1 { top: -10%; left: -10%; background: var(--u-primary); }
-        .blob-2 { bottom: -10%; right: -10%; background: var(--u-secondary); animation-delay: -5s; }
 
-        body.admin-mode .blob-1 { background: var(--a-primary); }
-        body.admin-mode .blob-2 { background: var(--a-secondary); }
+        .blob-1 { top: -20%; left: -10%; background: var(--active-accent); }
+        .blob-2 { bottom: -20%; right: -10%; background: var(--active-accent-2); animation-delay: -5s; }
 
+        /* --- LOGIN CARD ANIMATION --- */
         .login-container {
-            width: 100%;
-            max-width: 440px;
-            padding: 1.5rem;
-            z-index: 10;
+            width: 100%; max-width: 480px; padding: 2rem; z-index: 10;
+            opacity: 0; transform: translateY(30px);
+            animation: slideUp 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards 3.2s;
         }
+
+        @keyframes slideIn { to { opacity: 1; transform: translateX(0); } }
+        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
 
         .glass-card {
             background: var(--surface);
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
+            backdrop-filter: blur(40px) saturate(180%);
+            -webkit-backdrop-filter: blur(40px) saturate(180%);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 32px;
-            padding: 3rem 2.5rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 40px; padding: 3.5rem 3rem;
+            box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.8);
+            text-align: center;
         }
 
+        /* --- UI COMPONENTS --- */
         .portal-switcher {
-            display: flex;
-            background: rgba(15, 23, 42, 0.5);
-            padding: 4px;
-            border-radius: 14px;
-            margin-bottom: 2.5rem;
+            display: flex; background: rgba(0, 0, 0, 0.4);
+            padding: 6px; border-radius: 20px; margin-bottom: 2.5rem;
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .portal-btn {
-            flex: 1;
-            padding: 10px;
-            border-radius: 10px;
-            cursor: pointer;
-            text-align: center;
-            font-size: 0.85rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            color: var(--text-muted);
-        }
-
-        .portal-btn.active {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-
-        .logo-area { text-align: center; margin-bottom: 2rem; }
-        
-        .logo-icon {
-            width: 60px; height: 60px;
-            background: linear-gradient(135deg, var(--u-primary), var(--u-secondary));
-            border-radius: 20px;
-            display: inline-flex;
-            align-items: center; justify-content: center;
-            margin-bottom: 1.25rem;
-            transform: rotate(-5deg);
-            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        body.admin-mode .logo-icon {
-            background: linear-gradient(135deg, var(--a-primary), var(--a-secondary));
-            transform: rotate(5deg);
-        }
-
-        .logo-icon svg { width: 30px; height: 30px; color: white; }
-
-        h1 {
-            font-size: 1.8rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            background: linear-gradient(to bottom, #fff 30%, #94a3b8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .form-group { margin-bottom: 1.25rem; }
-        
-        label {
-            display: block;
-            color: var(--text-muted);
-            font-size: 0.8rem;
-            font-weight: 600;
+            flex: 1; padding: 12px; border-radius: 14px;
+            cursor: pointer; font-size: 0.85rem; font-weight: 700;
+            transition: all 0.4s ease; color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin: 0 0 0.5rem 0.25rem;
         }
+
+        .portal-btn.active { background: rgba(255, 255, 255, 0.1); color: white; }
+
+        h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff; }
+        .subtitle { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 2.5rem; }
+
+        .form-group { margin-bottom: 1.5rem; text-align: left;}
+        label { display: block; color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 0.6rem; margin-left: 0.5rem; }
 
         .input-wrapper { position: relative; }
-        
-        .input-wrapper svg {
-            position: absolute; left: 1.25rem; top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-            width: 18px; transition: color 0.3s ease;
-        }
-
         input {
-            width: 100%;
-            background: rgba(2, 6, 23, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 1.1rem 1.1rem 1.1rem 3.2rem;
-            color: white;
-            font-size: 0.95rem;
-            transition: all 0.3s ease;
+            width: 100%; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px; padding: 1.2rem 1.2rem 1.2rem 3.5rem;
+            color: white; font-size: 1rem; transition: all 0.3s ease;
         }
 
-        input:focus {
-            border-color: var(--active-accent);
-            background: rgba(2, 6, 23, 0.6);
-            outline: none;
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
-        }
+        input:focus { border-color: var(--active-accent); background: rgba(0, 0, 0, 0.5); outline: none; }
 
-        body.admin-mode input:focus {
-            box-shadow: 0 0 20px rgba(245, 158, 11, 0.1);
+        .input-wrapper svg {
+            position: absolute; left: 1.3rem; top: 50%; transform: translateY(-50%);
+            color: var(--active-accent); width: 20px;
         }
 
         button[type="submit"] {
-            width: 100%;
-            background: linear-gradient(135deg, var(--active-accent), var(--active-accent-dark));
-            color: white; border: none;
-            padding: 1.1rem; border-radius: 16px;
-            font-size: 1rem; font-weight: 700;
-            cursor: pointer; margin-top: 1.5rem;
-            transition: all 0.3s ease;
+            width: 100%; background: linear-gradient(135deg, var(--active-accent), var(--active-accent-2));
+            color: white; border: none; padding: 1.2rem; border-radius: 18px;
+            font-size: 1.1rem; font-weight: 800; cursor: pointer; margin-top: 1.5rem;
+            transition: all 0.4s ease; box-shadow: 0 10px 25px -10px var(--active-accent);
         }
 
-        button[type="submit"]:hover {
-            transform: translateY(-3px) scale(1.01);
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
-            filter: brightness(1.1);
-        }
+        button[type="submit"]:hover { transform: translateY(-4px); box-shadow: 0 20px 40px -10px var(--active-accent); }
 
-        .footer {
-            margin-top: 2.5rem; text-align: center;
-            font-size: 0.8rem; color: var(--text-muted);
-        }
+        .footer { margin-top: 2.5rem; text-align: center; font-size: 0.75rem; color: var(--text-muted); opacity: 0.6; }
     </style>
 </head>
 
 <body>
+    <div id="intro-overlay">
+        <div class="intro-text">LIFESTYLE INDEX SCORING</div>
+    </div>
+
+    <div class="header-logo">
+        <img src="https://iiflsamasta.com/wp-content/uploads/2024/06/IIFL-Samasta.png" alt="IIFL Samasta Logo">
+    </div>
+
+    <div class="home-bg"></div>
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
 
     <div class="login-container">
-        <div class="glass-card" id="card">
+        <div class="glass-card">
             <div class="portal-switcher">
-                <div class="portal-btn active" id="btn-user" onclick="setPortal('user')">User Portal</div>
-                <div class="portal-btn" id="btn-admin" onclick="setPortal('admin')">Admin Gate</div>
+                <div class="portal-btn active" id="btn-user" onclick="setPortal('user')">User</div>
+                <div class="portal-btn" id="btn-admin" onclick="setPortal('admin')">Admin</div>
             </div>
 
-            <div class="logo-area">
-                <div class="logo-icon">
-                    <svg id="logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    </svg>
-                </div>
-                <h1 id="greeting">Welcome Back</h1>
-                <p class="subtitle" id="subtitle" style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">Secure User Authentication</p>
-            </div>
+            <h1 id="greeting">Welcome</h1>
+            <p class="subtitle" id="subtitle">Security Level: Standard Access</p>
 
             <form action="/login" method="POST">
-                <input type="hidden" name="portal_type" id="portal_type" value="user">
-
                 <div class="form-group">
-                    <label>Identification</label>
+                    <label>Identity</label>
                     <div class="input-wrapper">
-                        <input type="text" name="username" placeholder="Username" required autocomplete="username">
+                        <input type="text" name="username" placeholder="Username" required>
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Secret Key</label>
+                    <label>Access Key</label>
                     <div class="input-wrapper">
-                        <input type="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+                        <input type="password" name="password" placeholder="••••••••" required>
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
                     </div>
                 </div>
 
-                <button type="submit" id="submit-btn">Initialize Session</button>
+                <button type="submit">Initialize Session</button>
             </form>
 
-            <div class="footer">
-                &copy; 2026 Index Scoring System • Security Protocol v4.0
-            </div>
+            <div class="footer">INDEX SCORING SYSTEM &bull; V4.0</div>
         </div>
     </div>
 
@@ -266,7 +225,6 @@
             const body = document.body;
             const btnUser = document.getElementById('btn-user');
             const btnAdmin = document.getElementById('btn-admin');
-            const portalInput = document.getElementById('portal_type');
             const greeting = document.getElementById('greeting');
             const subtitle = document.getElementById('subtitle');
             
@@ -274,16 +232,14 @@
                 body.classList.add('admin-mode');
                 btnAdmin.classList.add('active');
                 btnUser.classList.remove('active');
-                portalInput.value = 'admin';
-                greeting.innerText = 'Admin Terminal';
-                subtitle.innerText = 'System Level Authorization Required';
+                greeting.innerText = 'Admin Gate';
+                subtitle.innerText = 'Security Level: System Administrator';
             } else {
                 body.classList.remove('admin-mode');
                 btnUser.classList.add('active');
                 btnAdmin.classList.remove('active');
-                portalInput.value = 'user';
-                greeting.innerText = 'Welcome Back';
-                subtitle.innerText = 'Secure User Authentication';
+                greeting.innerText = 'Welcome';
+                subtitle.innerText = 'Security Level: Standard Access';
             }
         }
     </script>

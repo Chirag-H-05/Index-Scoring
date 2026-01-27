@@ -425,6 +425,26 @@ def admin_dashboard(request: Request, user: str = Depends(get_admin_user)):
         except Exception:
             ts_str = str(ts_val)
         events.append({"ts": ts_str, "username": uname, "event_type": etype, "session_id": sid})
+    
+    # Get users for user management section
+    try:
+        cur.execute("SELECT id, name, email, role, is_active, last_active FROM users ORDER BY created_at DESC")
+        users_rows = cur.fetchall()
+        users = [
+            {
+                "id": row[0],
+                "name": row[1],
+                "email": row[2],
+                "role": row[3],
+                "is_active": bool(row[4]),
+                "last_active": row[5]
+            }
+            for row in users_rows
+        ]
+    except Exception as e:
+        print(f"Error fetching users: {e}")
+        users = []
+    
     return templates.TemplateResponse(
         "admin.html",
         {
@@ -437,6 +457,7 @@ def admin_dashboard(request: Request, user: str = Depends(get_admin_user)):
             "input_tokens": token_totals[1],
             "output_tokens": token_totals[2],
             "events": events,
+            "users": users,
         },
     )
 
@@ -842,3 +863,261 @@ async def view_shared_report(share_id: str, request: Request):
     except Exception as e:
         print(f"View Shared Report Error: {str(e)}")
         return HTMLResponse(f"<h1>Error</h1><p>{str(e)}</p>", status_code=500)
+
+
+# -------------------------------------------------
+# USER MANAGEMENT ROUTES
+# -------------------------------------------------
+
+# Initialize users table
+def init_users_db():
+    try:
+        # Drop the old table if it exists with wrong schema
+        cur.execute("DROP TABLE IF EXISTS users")
+        
+        # Create new users table
+        cur.execute("""
+            CREATE TABLE users (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                role TEXT DEFAULT 'user',
+                is_active BOOLEAN DEFAULT 1,
+                last_active TEXT,
+                created_at INTEGER
+            )
+        """)
+        conn.commit()
+    except Exception as e:
+        print(f"Error initializing users table: {e}")
+        conn.commit()
+    conn.commit()
+
+init_users_db()
+
+@app.get("/admin/users", response_class=HTMLResponse)
+async def admin_users_page(request: Request):
+    """Render user management page"""
+    try:
+        session_user = request.session.get("user")
+        if not session_user or session_user != "admin":
+            return RedirectResponse(url="/login", status_code=302)
+        
+        cur.execute("SELECT id, name, email, role, is_active, last_active FROM users ORDER BY created_at DESC")
+        rows = cur.fetchall()
+        
+        users = [
+            {
+                "id": row[0],
+                "name": row[1],
+                "email": row[2],
+                "role": row[3],
+                "is_active": bool(row[4]),
+                "last_active": row[5]
+            }
+            for row in rows
+        ]
+        
+        return templates.TemplateResponse(
+            "users.html",
+            {
+                "request": request,
+                "users": users
+            }
+        )
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return HTMLResponse(f"<h1>Error</h1><p>{str(e)}</p>", status_code=500)
+
+
+@app.get("/admin/users/api")
+async def get_users_api(request: Request):
+    """Get all users as JSON for API"""
+    try:
+        session_user = request.session.get("user")
+        if not session_user or session_user != "admin":
+            raise HTTPException(status_code=403, detail="Unauthorized")
+        
+        cur.execute("SELECT id, name, email, role, is_active, last_active FROM users ORDER BY created_at DESC")
+        rows = cur.fetchall()
+        
+        users = [
+            {
+                "id": row[0],
+                "name": row[1],
+                "email": row[2],
+                "role": row[3],
+                "is_active": bool(row[4]),
+                "last_active": row[5]
+            }
+            for row in rows
+        ]
+        
+        return JSONResponse({"users": users})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/admin/add-user")
+async def add_user(request: Request):
+    """Add a new user"""
+    try:
+        session_user = request.session.get("user")
+        if not session_user or session_user != "admin":
+            raise HTTPException(status_code=403, detail="Unauthorized")
+        
+        data = await request.json()
+        name = data.get("name")
+        email = data.get("email")
+        role = data.get("role", "user")
+        
+        if not name or not email:
+            return JSONResponse({"message": "Name and email required"}, status_code=400)
+        
+        user_id = str(uuid.uuid4())
+        cur.execute(
+            "INSERT INTO users (id, name, email, role, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, name, email, role, 1, int(time.time()))
+        )
+        conn.commit()
+        
+        return JSONResponse({"status": "success", "user_id": user_id})
+    except sqlite3.IntegrityError:
+        return JSONResponse({"message": "Email already exists"}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/admin/user/{user_id}")
+async def get_user(user_id: str, request: Request):
+    """Get user details"""
+    try:
+        session_user = request.session.get("user")
+        if not session_user or session_user != "admin":
+            raise HTTPException(status_code=403, detail="Unauthorized")
+        
+        cur.execute("SELECT id, name, email, role, is_active FROM users WHERE id = ?", (user_id,))
+        row = cur.fetchone()
+        
+        if not row:
+            return JSONResponse({"error": "User not found"}, status_code=404)
+        
+        return JSONResponse({
+            "id": row[0],
+            "name": row[1],
+            "email": row[2],
+            "role": row[3],
+            "is_active": bool(row[4])
+        })
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.put("/admin/user/{user_id}")
+async def update_user(user_id: str, request: Request):
+    """Update user details"""
+    try:
+        session_user = request.session.get("user")
+        if not session_user or session_user != "admin":
+            raise HTTPException(status_code=403, detail="Unauthorized")
+        
+        data = await request.json()
+        name = data.get("name")
+        email = data.get("email")
+        role = data.get("role")
+        
+        cur.execute(
+            "UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?",
+            (name, email, role, user_id)
+        )
+        conn.commit()
+        
+        return JSONResponse({"status": "success"})
+    except sqlite3.IntegrityError:
+        return JSONResponse({"message": "Email already exists"}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/admin/user/{user_id}/deactivate")
+async def deactivate_user(user_id: str, request: Request):
+    """Deactivate a user"""
+    try:
+        session_user = request.session.get("user")
+        if not session_user or session_user != "admin":
+            raise HTTPException(status_code=403, detail="Unauthorized")
+        
+        cur.execute("UPDATE users SET is_active = 0 WHERE id = ?", (user_id,))
+        conn.commit()
+        
+        return JSONResponse({"status": "success"})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/admin/user/{user_id}/activate")
+async def activate_user(user_id: str, request: Request):
+    """Activate a user"""
+    try:
+        session_user = request.session.get("user")
+        if not session_user or session_user != "admin":
+            raise HTTPException(status_code=403, detail="Unauthorized")
+        
+        cur.execute("UPDATE users SET is_active = 1 WHERE id = ?", (user_id,))
+        conn.commit()
+        
+        return JSONResponse({"status": "success"})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/admin/user/{user_id}/reset-password")
+async def reset_user_password(user_id: str, request: Request):
+    """Send password reset link to user"""
+    try:
+        session_user = request.session.get("user")
+        if not session_user or session_user != "admin":
+            raise HTTPException(status_code=403, detail="Unauthorized")
+        
+        cur.execute("SELECT email, name FROM users WHERE id = ?", (user_id,))
+        row = cur.fetchone()
+        
+        if not row:
+            return JSONResponse({"error": "User not found"}, status_code=404)
+        
+        email, name = row
+        reset_token = str(uuid.uuid4())
+        
+        # Send email
+        try:
+            msg = EmailMessage()
+            msg['Subject'] = 'Password Reset Request'
+            msg['From'] = os.getenv("SENDER_EMAIL", "admin@example.com")
+            msg['To'] = email
+            msg.set_content(f"Hi {name},\n\nClick here to reset your password:\nhttp://localhost:8000/reset-password?token={reset_token}\n\nThis link expires in 1 hour.")
+            
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                smtp.login(os.getenv("SENDER_EMAIL"), os.getenv("SENDER_PASSWORD"))
+                smtp.send_message(msg)
+        except Exception as e:
+            print(f"Email send error: {str(e)}")
+        
+        return JSONResponse({"status": "success", "message": f"Reset link sent to {email}"})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.delete("/admin/user/{user_id}")
+async def delete_user(user_id: str, request: Request):
+    """Delete a user"""
+    try:
+        session_user = request.session.get("user")
+        if not session_user or session_user != "admin":
+            raise HTTPException(status_code=403, detail="Unauthorized")
+        
+        cur.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+        
+        return JSONResponse({"status": "success"})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
