@@ -566,7 +566,6 @@ def result(request: Request, session_id: str, user: str = Depends(get_current_us
         }
     )
 
-
 # JSON API endpoint for real-time dashboard updates
 @app.get("/result-json")
 def result_json(session_id: str, user: str = Depends(get_current_user)):
