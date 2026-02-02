@@ -236,24 +236,46 @@ def send_email_with_attachment(to_email: str, subject: str, body_text: str, atta
             return (False, f"outbox-save-failed: {e}")
 
     # Normal path: send via configured SMTP server
+    use_ssl = os.getenv("SMTP_USE_SSL", "").lower() in ("1", "true", "yes") or int(os.getenv("SMTP_PORT") or port) == 465
     try:
-        with smtplib.SMTP(host, port, timeout=20) as s:
-            try:
-                s.starttls()
-            except Exception as e:
-                # Not fatal but log warning
-                print(f"Warning: starttls failed: {e}")
-            if user and password:
+        if use_ssl:
+            # Connect with implicit SSL (port 465)
+            with smtplib.SMTP_SSL(host, port, timeout=20) as s:
+                if user and password:
+                    try:
+                        s.login(user, password)
+                    except smtplib.SMTPAuthenticationError as e:
+                        print(f"SMTP auth failed: {e}")
+                        return (False, f"SMTP auth failed: {e} (check credentials/app-passwords and Zoho SMTP settings)")
+                    except Exception as e:
+                        print(f"SMTP login failed: {e}")
+                        return (False, f"SMTP login failed: {e}")
                 try:
-                    s.login(user, password)
+                    s.send_message(msg)
                 except Exception as e:
-                    print(f"SMTP login failed: {e}")
-                    return (False, f"SMTP login failed: {e}")
-            try:
-                s.send_message(msg)
-            except Exception as e:
-                print(f"SMTP send_message failed: {e}")
-                return (False, f"SMTP send failed: {e}")
+                    print(f"SMTP send_message failed: {e}")
+                    return (False, f"SMTP send failed: {e}")
+        else:
+            with smtplib.SMTP(host, port, timeout=20) as s:
+                try:
+                    s.starttls()
+                except Exception as e:
+                    # Not fatal but log warning
+                    print(f"Warning: starttls failed: {e}")
+                if user and password:
+                    try:
+                        s.login(user, password)
+                    except smtplib.SMTPAuthenticationError as e:
+                        print(f"SMTP auth failed: {e}")
+                        return (False, f"SMTP auth failed: {e} (check credentials/app-passwords and Zoho SMTP settings)")
+                    except Exception as e:
+                        print(f"SMTP login failed: {e}")
+                        return (False, f"SMTP login failed: {e}")
+                try:
+                    s.send_message(msg)
+                except Exception as e:
+                    print(f"SMTP send_message failed: {e}")
+                    return (False, f"SMTP send failed: {e}")
         return (True, None)
     except Exception as e:
         print(f"SMTP connection/send error: {e}")
@@ -632,7 +654,10 @@ async def admin_send_user_report(request: Request, user: str = Depends(get_admin
     if not username:
         raise HTTPException(status_code=400, detail="username required")
     content, mimetype, filename = build_user_report_document(username)
-    to_email = USER_EMAILS.get(username) or f"{username}@example.com"
+    # Resolve recipient email: prefer explicit mapping; if username itself looks like an email, use it; otherwise append @example.com
+    to_email = USER_EMAILS.get(username)
+    if not to_email:
+        to_email = username if "@" in (username or "") else f"{username}@example.com"
     subject = f"Activity Report for {username}"
     body_text = "Please find attached your latest activity report."
     ok, err = send_email_with_attachment(to_email, subject, body_text, content, filename, mimetype)
@@ -662,6 +687,69 @@ def admin_test_email(user: str = Depends(get_admin_user)):
     if err and str(err).startswith("saved-to-outbox"):
         return JSONResponse({"status": "saved", "message": err, "to": to_email})
     return JSONResponse({"status": "sent", "to": to_email})
+
+
+@app.get('/admin/smtp-status')
+def admin_smtp_status(user: str = Depends(get_admin_user)):
+    """Return current SMTP config and attempt a quick connect and login test (if credentials present)."""
+    host = os.getenv('SMTP_HOST')
+    debug = os.getenv('SMTP_DEBUG', '').lower() in ('1', 'true', 'yes')
+    debug_host = os.getenv('SMTP_DEBUG_HOST', 'localhost')
+    port = int(os.getenv('SMTP_PORT') or os.getenv('SMTP_DEBUG_PORT', '1025'))
+
+    user = os.getenv('SMTP_USER')
+    password = os.getenv('SMTP_PASS')
+    use_ssl = os.getenv('SMTP_USE_SSL', '').lower() in ('1', 'true', 'yes') or (int(os.getenv('SMTP_PORT') or port) == 465)
+
+    result = {'smtp_host': host, 'smtp_debug': debug, 'port': port, 'smtp_user_provided': bool(user), 'use_ssl': use_ssl}
+
+    if not host and not debug:
+        result['status'] = 'no_config'
+        result['message'] = 'SMTP_HOST not configured. Set SMTP_HOST in .env or enable SMTP_DEBUG=1 to test local SMTP.'
+        return JSONResponse(result, status_code=400)
+
+    target_host = host if host else debug_host
+    try:
+        if use_ssl:
+            with smtplib.SMTP_SSL(target_host, port, timeout=5) as s:
+                # attempt login if credentials provided
+                if user and password:
+                    try:
+                        s.login(user, password)
+                        result['status'] = 'ok'
+                        result['message'] = f'Connected and authenticated to {target_host}:{port} (SSL)'
+                        return JSONResponse(result)
+                    except smtplib.SMTPAuthenticationError as e:
+                        result['status'] = 'auth_failed'
+                        result['message'] = f'SMTP auth failed: {e} (check username / password, or use app-passwords for Zoho)'
+                        return JSONResponse(result, status_code=403)
+                # no credentials: just connected
+                result['status'] = 'ok'
+                result['message'] = f'Connected to {target_host}:{port} (SSL)'
+                return JSONResponse(result)
+        else:
+            with smtplib.SMTP(target_host, port, timeout=5) as s:
+                try:
+                    s.starttls()
+                except Exception:
+                    pass
+                if user and password:
+                    try:
+                        s.login(user, password)
+                        result['status'] = 'ok'
+                        result['message'] = f'Connected and authenticated to {target_host}:{port} (STARTTLS)'
+                        return JSONResponse(result)
+                    except smtplib.SMTPAuthenticationError as e:
+                        result['status'] = 'auth_failed'
+                        result['message'] = f'SMTP auth failed: {e} (check username / password, or use app-passwords for Zoho)'
+                        return JSONResponse(result, status_code=403)
+                result['status'] = 'ok'
+                result['message'] = f'Connected to {target_host}:{port} (STARTTLS)'
+                return JSONResponse(result)
+    except Exception as e:
+        result['status'] = 'conn_failed'
+        result['message'] = str(e)
+        return JSONResponse(result, status_code=500)
 
 # -----------------------------
 # Outbox management (admin)
@@ -775,15 +863,40 @@ def send_eml_via_smtp(eml_path: str) -> tuple[bool, str | None]:
     user = os.getenv("SMTP_USER")
     password = os.getenv("SMTP_PASS")
 
+    use_ssl = os.getenv('SMTP_USE_SSL', '').lower() in ('1', 'true', 'yes') or (int(os.getenv('SMTP_PORT') or port) == 465)
+
+    # Prefer implicit SSL if configured or port 465 is used
     try:
-        with smtplib.SMTP(host, port, timeout=20) as s:
+        if use_ssl:
+            try:
+                with smtplib.SMTP_SSL(host, port, timeout=30) as s:
+                    if user and password:
+                        try:
+                            s.login(user, password)
+                        except smtplib.SMTPAuthenticationError as e:
+                            return (False, f"smtp-auth-failed:{e} (check username/password, try SMTP_USE_SSL=1 and port=465 or use an app-specific password for providers like Zoho)")
+                        except Exception as e:
+                            return (False, f"smtp-login-failed:{e}")
+                    try:
+                        s.send_message(msg)
+                    except Exception as e:
+                        return (False, f"smtp-send-failed:{e}")
+                return (True, None)
+            except Exception as e:
+                # If implicit SSL fails, fall through to STARTTLS attempt
+                print(f"SMTP_SSL connection failed: {e}. Will try STARTTLS fallback.")
+
+        # Try STARTTLS (common for port 587)
+        with smtplib.SMTP(host, port, timeout=30) as s:
             try:
                 s.starttls()
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"STARTTLS not available/failed: {e}")
             if user and password:
                 try:
                     s.login(user, password)
+                except smtplib.SMTPAuthenticationError as e:
+                    return (False, f"smtp-auth-failed:{e} (check username/password, use app-specific password if provider requires it)")
                 except Exception as e:
                     return (False, f"smtp-login-failed:{e}")
             try:
@@ -1359,15 +1472,34 @@ def send_plain_email(to_email: str, subject: str, body_text: str) -> tuple[bool,
             except Exception as se:
                 return (False, f"outbox-save-failed: {se}")
 
+    use_ssl = os.getenv("SMTP_USE_SSL", "").lower() in ("1", "true", "yes") or int(os.getenv("SMTP_PORT") or port) == 465
     try:
-        with smtplib.SMTP(host, port, timeout=20) as s:
-            try:
-                s.starttls()
-            except Exception:
-                pass
-            if user and password:
-                s.login(user, password)
-            s.send_message(msg)
+        if use_ssl:
+            with smtplib.SMTP_SSL(host, port, timeout=20) as s:
+                if user and password:
+                    try:
+                        s.login(user, password)
+                    except smtplib.SMTPAuthenticationError as e:
+                        return (False, f"SMTP auth failed: {e} (check credentials/app-passwords and Zoho SMTP settings)")
+                try:
+                    s.send_message(msg)
+                except Exception as e:
+                    return (False, f"SMTP send failed: {e}")
+        else:
+            with smtplib.SMTP(host, port, timeout=20) as s:
+                try:
+                    s.starttls()
+                except Exception:
+                    pass
+                if user and password:
+                    try:
+                        s.login(user, password)
+                    except smtplib.SMTPAuthenticationError as e:
+                        return (False, f"SMTP auth failed: {e} (check credentials/app-passwords and Zoho SMTP settings)")
+                try:
+                    s.send_message(msg)
+                except Exception as e:
+                    return (False, f"SMTP send failed: {e}")
         return (True, None)
     except Exception as e:
         return (False, str(e))
