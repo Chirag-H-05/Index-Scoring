@@ -45,7 +45,8 @@ SMTP_HOST=localhost
 SMTP_PORT=1025
 ```
 
-- If `SMTP_HOST` is not set, the app will save outgoing emails to `backend/outbox` by default. To attempt sending to a local SMTP server instead, set `SMTP_DEBUG=1` (and optionally `SMTP_DEBUG_HOST` and `SMTP_DEBUG_PORT`) and run a local SMTP server (for example `python -m smtpd -n -c DebuggingServer localhost:1025` or use a Windows tool like `smtp4dev`). If sending is attempted but fails, the message will fall back to `backend/outbox` and the API will return `{"status": "saved", "message": "saved-to-outbox:/path/to/file.eml"}` so you can inspect the message.
+- If `SMTP_HOST` is not set, the app will save outgoing emails to `backend/outbox` by default. To attempt sending to a local SMTP server instead, set `SMTP_DEBUG=1` (and optionally `SMTP_DEBUG_HOST` and `SMTP_DEBUG_PORT`) and run a local SMTP server (for example `python -m smtpd -n -c DebuggingServer localhost:1025`, or `aiosmtpd`, or use a Windows tool like `smtp4dev`). If sending is attempted but fails, the message will fall back to `backend/outbox` and the API will return `{"status": "saved", "message": "saved-to-outbox:/path/to/file.eml"}` so you can inspect the message.
+- If you set `SMTP_HOST` in your `.env`, restart the application so the new settings are loaded. Use `/admin/smtp-status` to check runtime connectivity (will attempt a quick NOOP to test) and `/admin/test-email` to send a test message.
 
 - You can manage saved messages from the Admin UI: click **Outbox** on the Admin page to list files, view a message, or attempt to resend it once SMTP is configured (the UI triggers `/admin/outbox` and `/admin/outbox/resend`).
 - The app also includes an **automatic outbox retry worker** that will periodically attempt to resend saved `.eml` files when SMTP is configured (or when `SMTP_DEBUG=1` is set to test a local SMTP). Configure the behavior with environment variables:
